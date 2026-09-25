@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>混合 DNA 样本供样人裁决</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <h1>混合 DNA 样本供样人裁决</h1>
+    <p>
+      基于短串联重复（STR）基因型，在<strong>完整候选人子集 × 正整数份数</strong>的联合空间中
+      还原最少供样人组合及其整数模板份数，避免按单个位点各自猜测而产生无法同时解释全样本的结论。
+    </p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>① 检验参数</h2>
+      <div class="controls">
+        <label>候选人数量（4–8）
+          <select id="num-candidates">
+            <option>4</option>
+            <option selected>5</option>
+            <option>6</option>
+            <option>7</option>
+            <option>8</option>
+          </select>
+        </label>
+        <label>位点数量（3–6）
+          <select id="num-loci">
+            <option selected>3</option>
+            <option>4</option>
+            <option>5</option>
+            <option>6</option>
+          </select>
+        </label>
+        <label>统一误差上限
+          <input id="tolerance" type="number" min="0" max="1000" step="1" value="0">
+        </label>
+        <div class="btn-row">
+          <button id="btn-build" class="btn">生成表单</button>
+          <button id="btn-example" class="btn secondary">载入示例</button>
+          <button id="btn-adjudicate" class="btn primary">裁 决</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>② 候选人基因型（每人每位点两条等位基因）</h2>
+      <div id="candidate-table" class="table-wrap"></div>
+    </section>
+
+    <section class="panel">
+      <h2>③ 观测拷贝数（按位点汇总等位基因）</h2>
+      <div id="observed-grid" class="observed-grid"></div>
+      <p id="depth-status" class="depth-status"></p>
+    </section>
+
+    <section class="panel" id="result-panel" hidden>
+      <h2>④ 裁决结果</h2>
+      <div id="result"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>
+      结果通过 <code>POST /api/mixture-adjudications</code> 实时计算；
+      非法输入、无解与歧义均不会被报告为唯一解。
+    </p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
