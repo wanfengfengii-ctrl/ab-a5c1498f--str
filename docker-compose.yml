@@ -1,0 +1,36 @@
+# 混合 DNA 样本裁决系统
+# 用法：
+#   启动服务：            docker compose up --build app
+#   自定义宿主机端口：     HOST_PORT=9000 docker compose up --build app
+#   一次性验证（测试+冒烟）：docker compose up --build --abort-on-container-exit --exit-code-from verify verify
+name: dna-mixture-adjudicator
+
+services:
+  app:
+    build: .
+    image: dna-mixture-adjudicator:latest
+    ports:
+      # 宿主机端口可通过环境变量 HOST_PORT 配置，默认 8080
+      - "${HOST_PORT:-8080}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/health',timeout=3)"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  verify:
+    build: .
+    image: dna-mixture-adjudicator:latest
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      APP_URL: http://app:8000
+    command: ["sh", "verify/run.sh"]
+    restart: "no"

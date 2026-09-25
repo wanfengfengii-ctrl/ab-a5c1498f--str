@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>混合 DNA 样本裁决系统</title>
+<style>
+  :root {
+    --ink: #1c2733; --muted: #5c6b7a; --line: #d5dde5;
+    --accent: #0b5fa5; --accent-dark: #084a82;
+    --ok: #1a7f4b; --warn: #b25b00; --bad: #b3261e; --idle: #5c6b7a;
+    --card: #ffffff; --bg: #f2f5f8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    line-height: 1.55;
+  }
+  header {
+    background: linear-gradient(135deg, #0b3a63, #0b5fa5);
+    color: #fff; padding: 20px 28px;
+  }
+  header h1 { margin: 0 0 6px; font-size: 22px; }
+  header p { margin: 0; font-size: 13px; opacity: .88; max-width: 960px; }
+  main { max-width: 1180px; margin: 0 auto; padding: 20px 20px 60px; }
+  section.card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 16px 18px; margin-bottom: 18px;
+  }
+  h2 { font-size: 16px; margin: 0 0 12px; color: var(--accent-dark); }
+  h3 { font-size: 14px; margin: 14px 0 8px; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; }
+  label.field { display: flex; flex-direction: column; font-size: 13px; color: var(--muted); gap: 4px; }
+  input, select {
+    font: inherit; padding: 5px 8px; border: 1px solid var(--line);
+    border-radius: 6px; background: #fff; color: var(--ink);
+  }
+  input:focus, select:focus { outline: 2px solid #0b5fa54d; border-color: var(--accent); }
+  input.small { width: 90px; }
+  input.tiny { width: 64px; }
+  button {
+    font: inherit; cursor: pointer; border-radius: 6px; padding: 7px 16px;
+    border: 1px solid var(--accent); background: var(--accent); color: #fff;
+  }
+  button:hover { background: var(--accent-dark); }
+  button.ghost { background: #fff; color: var(--accent); }
+  button.ghost:hover { background: #eaf2fa; }
+  button.linky {
+    border: none; background: none; color: var(--accent);
+    padding: 2px 6px; font-size: 13px;
+  }
+  button.linky:hover { text-decoration: underline; background: none; }
+  table { border-collapse: collapse; margin-top: 6px; }
+  th, td { border: 1px solid var(--line); padding: 5px 8px; font-size: 13px; text-align: center; }
+  th { background: #eef3f8; font-weight: 600; }
+  td input { width: 72px; text-align: center; }
+  td input.cid { width: 96px; font-weight: 600; }
+  .obs-block {
+    display: inline-block; vertical-align: top; margin: 0 18px 14px 0;
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+    background: #fbfdfe; min-width: 240px;
+  }
+  .obs-block h4 { margin: 0 0 8px; font-size: 13px; color: var(--accent-dark); }
+  .obs-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  #adjudicate { font-size: 16px; padding: 10px 42px; }
+  .banner {
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 14px;
+    font-size: 15px; font-weight: 600; border: 1px solid transparent;
+  }
+  .banner.unique { background: #e6f6ec; color: var(--ok); border-color: #9ed8b4; }
+  .banner.ambiguous { background: #fdf1e2; color: var(--warn); border-color: #f0c48c; }
+  .banner.no_solution { background: #eceff2; color: var(--idle); border-color: #c4cdd6; }
+  .banner.error { background: #fdecea; color: var(--bad); border-color: #f2b0ab; }
+  .meta { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+  .meta b { color: var(--ink); }
+  .witness-grid { display: flex; flex-wrap: wrap; gap: 16px; }
+  .solution-card {
+    flex: 1 1 460px; border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 14px; background: #fbfdfe;
+  }
+  .solution-card h3 { margin-top: 0; }
+  .chip {
+    display: inline-block; background: #e3eefb; color: var(--accent-dark);
+    border-radius: 20px; padding: 3px 12px; font-size: 13px; font-weight: 600;
+    margin: 0 6px 6px 0;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+  .err-list { margin: 6px 0 0; padding-left: 20px; font-size: 13px; }
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .spacer { flex: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>混合 DNA 样本裁决系统</h1>
+  <p>录入候选供样人的 STR 等位基因型与各位点观测拷贝数后，系统在「候选人子集 × 正整数份数」的联合空间中裁决：
+     份数之和等于各位点共同的观测总深度；每个位点每种等位基因的预测拷贝数与观测差值均不超过误差上限；
+     先最少化供样人数（1–3 人），再最小化全部绝对残差和。同一最优值存在多种份数向量时判定为歧义并出示两份见证。
+     模型约定：每份模板在该位点的两条等位基因上各贡献 1/2 份（纯合子合计 1 份）。</p>
+</header>
+<main>
+  <section class="card">
+    <h2>① 基本设置</h2>
+    <div class="row">
+      <label class="field">候选人数量（4–8）
+        <select id="candidate-count"></select>
+      </label>
+      <label class="field">位点数量（3–6）
+        <select id="locus-count"></select>
+      </label>
+      <label class="field">统一误差上限（非负整数）
+        <input id="tolerance" class="small" type="number" min="0" step="1" value="0">
+      </label>
+      <div class="toolbar">
+        <button type="button" class="ghost" id="rebuild">重建表单</button>
+        <button type="button" class="ghost" id="load-example">载入示例</button>
+      </div>
+    </div>
+    <div class="hint">修改数量后点击「重建表单」生效；已有录入内容会尽量保留。</div>
+  </section>
+
+  <section class="card">
+    <h2>② 候选人基因型（每人每位点两条等位基因）</h2>
+    <div id="genotype-grid"></div>
+  </section>
+
+  <section class="card">
+    <h2>③ 各位点观测拷贝数（按等位基因汇总）</h2>
+    <div id="observed-blocks"></div>
+    <div class="hint">各位点的观测拷贝数之和必须相等（共同观测总深度），且为正整数。</div>
+  </section>
+
+  <section class="card">
+    <div class="toolbar">
+      <button id="adjudicate" type="button">裁 决</button>
+      <span class="hint">点击后通过 <code>POST /api/mixture-adjudications</code> 请求裁决并展示可复核结果。</span>
+    </div>
+  </section>
+
+  <section class="card" id="result-section" hidden>
+    <h2>④ 裁决结果</h2>
+    <div id="result"></div>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s).replace(/[&<>"']/g,
+  (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = (n) => Number.isInteger(n) ? String(n) : n.toFixed(1);
+
+const candidateCountSel = $("#candidate-count");
+const locusCountSel = $("#locus-count");
+for (let i = 4; i <= 8; i++) candidateCountSel.add(new Option(`${i} 名`, i));
+for (let i = 3; i <= 6; i++) locusCountSel.add(new Option(`${i} 个`, i));
+candidateCountSel.value = "4";
+locusCountSel.value = "3";
+
+/* ---------- 表单构建（尽量保留已有值） ---------- */
+
+function currentIds() {
+  return [...document.querySelectorAll("input.cid")].map((i) => i.value);
+}
+function currentLocusNames() {
+  return [...document.querySelectorAll("input.locus-name")].map((i) => i.value);
+}
+function currentGenotypes() {
+  const data = {};
+  document.querySelectorAll("input[data-g]").forEach((inp) => {
+    const [ci, li, ai] = inp.dataset.g.split(",").map(Number);
+    data[`${ci},${li},${ai}`] = inp.value;
+  });
+  return data;
+}
+function currentObserved() {
+  const data = {};
+  document.querySelectorAll(".obs-block").forEach((block, li) => {
+    data[li] = [...block.querySelectorAll(".obs-row")].map((row) => ({
+      allele: row.querySelector(".obs-allele").value,
+      count: row.querySelector(".obs-count").value,
+    }));
+  });
+  return data;
+}
+
+function buildForm() {
+  const nc = Number(candidateCountSel.value);
+  const nl = Number(locusCountSel.value);
+  const ids = currentIds();
+  const names = currentLocusNames();
+  const geno = currentGenotypes();
+  const obs = currentObserved();
+
+  // 基因型表格
+  let html = "<table><thead><tr><th>候选人编号</th>";
+  for (let li = 0; li < nl; li++) {
+    html += `<th><input class="locus-name" data-li="${li}" value="${esc(names[li] ?? `L${li + 1}`)}" placeholder="位点名称"></th>`;
+  }
+  html += "</tr><tr><th></th>";
+  for (let li = 0; li < nl; li++) html += "<th>等位基因 1 / 等位基因 2</th>";
+  html += "</tr></thead><tbody>";
+  for (let ci = 0; ci < nc; ci++) {
+    html += `<tr><td><input class="cid" data-ci="${ci}" value="${esc(ids[ci] ?? `C${ci + 1}`)}" placeholder="如 C${ci + 1}"></td>`;
+    for (let li = 0; li < nl; li++) {
+      const v1 = geno[`${ci},${li},0`] ?? "";
+      const v2 = geno[`${ci},${li},1`] ?? "";
+      html += `<td><input data-g="${ci},${li},0" value="${esc(v1)}" placeholder="等位基因"> /
+               <input data-g="${ci},${li},1" value="${esc(v2)}" placeholder="等位基因"></td>`;
+    }
+    html += "</tr>";
+  }
+  html += "</tbody></table>";
+  $("#genotype-grid").innerHTML = html;
+
+  // 观测拷贝数区块
+  const container = $("#observed-blocks");
+  container.innerHTML = "";
+  for (let li = 0; li < nl; li++) {
+    const block = document.createElement("div");
+    block.className = "obs-block";
+    block.dataset.li = li;
+    block.innerHTML = `<h4>位点 <span class="obs-locus-label">${esc(names[li] ?? `L${li + 1}`)}</span></h4><div class="obs-rows"></div>`;
+    const rows = block.querySelector(".obs-rows");
+    const existing = obs[li] && obs[li].length ? obs[li] : [{ allele: "", count: "" }];
+    existing.forEach((r) => addObsRow(rows, r.allele, r.count));
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "linky";
+    addBtn.textContent = "＋ 添加等位基因";
+    addBtn.addEventListener("click", () => addObsRow(rows, "", ""));
+    block.appendChild(addBtn);
+    container.appendChild(block);
+  }
+
+  // 位点名称联动到观测区块标题
+  document.querySelectorAll("input.locus-name").forEach((inp) => {
+    inp.addEventListener("input", syncObsLabels);
+  });
+  syncObsLabels();
+}
+
+function addObsRow(rows, allele, count) {
+  const row = document.createElement("div");
+  row.className = "obs-row";
+  row.innerHTML = `<input class="obs-allele tiny" placeholder="等位基因" value="${esc(allele)}">
+                   <span>=</span>
+                   <input class="obs-count tiny" type="number" min="0" step="1" placeholder="拷贝数" value="${esc(count)}">
+                   <button type="button" class="linky" title="删除此行">✕</button>`;
+  row.querySelector("button").addEventListener("click", () => row.remove());
+  rows.appendChild(row);
+}
+
+function syncObsLabels() {
+  const names = currentLocusNames();
+  document.querySelectorAll(".obs-block").forEach((block, li) => {
+    block.querySelector(".obs-locus-label").textContent = names[li] || `L${li + 1}`;
+  });
+}
+
+/* ---------- 录入收集与校验 ---------- */
+
+function gatherPayload() {
+  const ids = [...document.querySelectorAll("input.cid")].map((i) => i.value.trim());
+  if (ids.some((v) => !v)) throw new Error("候选人编号不能为空");
+  if (new Set(ids).size !== ids.length) throw new Error("候选人编号必须唯一");
+
+  const names = currentLocusNames().map((v) => v.trim());
+  if (names.some((v) => !v)) throw new Error("位点名称不能为空");
+  if (new Set(names).size !== names.length) throw new Error("位点名称必须唯一");
+
+  const nc = ids.length, nl = names.length;
+  const genoInputs = {};
+  document.querySelectorAll("input[data-g]").forEach((inp) => {
+    genoInputs[inp.dataset.g] = inp.value.trim();
+  });
+  const candidates = ids.map((id, ci) => {
+    const genotypes = {};
+    names.forEach((name, li) => {
+      const a1 = genoInputs[`${ci},${li},0`] || "";
+      const a2 = genoInputs[`${ci},${li},1`] || "";
+      if (!a1 || !a2) throw new Error(`候选人 ${id} 在位点 ${name} 缺少等位基因`);
+      genotypes[name] = [a1, a2];
+    });
+    return { id, genotypes };
+  });
+
+  const loci = names.map((name, li) => {
+    const block = document.querySelector(`.obs-block[data-li="${li}"]`);
+    const observed = {};
+    block.querySelectorAll(".obs-row").forEach((row) => {
+      const allele = row.querySelector(".obs-allele").value.trim();
+      const raw = row.querySelector(".obs-count").value.trim();
+      if (!allele) throw new Error(`位点 ${name} 存在空的等位基因名称`);
+      if (allele in observed) throw new Error(`位点 ${name} 的等位基因 ${allele} 重复录入，请合并为一条汇总拷贝数`);
+      if (!/^\d+$/.test(raw)) throw new Error(`位点 ${name} 等位基因 ${allele} 的拷贝数必须为非负整数`);
+      observed[allele] = Number(raw);
+    });
+    if (!Object.keys(observed).length) throw new Error(`位点 ${name} 至少需要一种观测等位基因`);
+    return { name, observed };
+  });
+
+  const tolRaw = $("#tolerance").value.trim();
+  if (!/^\d+$/.test(tolRaw)) throw new Error("统一误差上限必须为非负整数");
+
+  return { tolerance: Number(tolRaw), candidates, loci };
+}
+
+/* ---------- 结果渲染 ---------- */
+
+const STATUS_TEXT = {
+  unique: ["唯一解", "unique"],
+  ambiguous: ["歧义：存在多种最优份数向量", "ambiguous"],
+  no_solution: ["无解：在给定误差上限内无可行组合", "no_solution"],
+};
+
+function solutionCard(sol, title) {
+  const chips = sol.contributors
+    .map((c) => `<span class="chip">${esc(c.id)} × ${c.copies} 份</span>`).join("");
+  let tables = "";
+  sol.perLocus.forEach((l) => {
+    const rows = l.alleles.map((a) =>
+      `<tr><td>${esc(a.allele)}</td><td class="num">${a.observed}</td>` +
+      `<td class="num">${fmt(a.predicted)}</td><td class="num">${fmt(a.absDiff)}</td></tr>`
+    ).join("");
+    tables += `<h3>位点 ${esc(l.locus)}（残差 ${fmt(l.residual)}）</h3>
+      <table><thead><tr><th>等位基因</th><th>观测</th><th>预测</th><th>绝对差</th></tr></thead>
+      <tbody>${rows}</tbody></table>`;
+  });
+  return `<div class="solution-card"><h3>${esc(title)}</h3>
+    <div>${chips}</div>
+    <div class="meta">绝对残差和：<b class="num">${fmt(sol.absoluteResidual)}</b></div>
+    ${tables}</div>`;
+}
+
+function renderResult(res) {
+  const [text, cls] = STATUS_TEXT[res.status] || ["未知状态", "error"];
+  let html = `<div class="banner ${cls}">${text}</div>`;
+  html += `<div class="meta">观测总深度：<b>${res.totalDepth}</b>　误差上限：<b>${res.tolerance}</b>`;
+  if (res.objective) {
+    html += `　最优供样人数：<b>${res.objective.contributors}</b>　最小绝对残差和：<b class="num">${fmt(res.objective.absoluteResidual)}</b>`;
+  }
+  html += `　（已检查 ${res.examined.subsets} 个候选人子集、${res.examined.assignments} 种份数方案）</div>`;
+  if (res.status === "unique" && res.solution) {
+    html += `<div class="witness-grid">${solutionCard(res.solution, "唯一最优解")}</div>`;
+  } else if (res.status === "ambiguous" && res.witnesses) {
+    html += `<div class="meta">以下出示 ${res.witnesses.length} 份互不相同的最优见证，须人工复核，不得按唯一结论采信：</div>`;
+    html += `<div class="witness-grid">` +
+      res.witnesses.map((w, i) => solutionCard(w, `见证 ${i + 1}`)).join("") + `</div>`;
+  }
+  showResult(html);
+}
+
+function renderError(title, items) {
+  const list = items && items.length
+    ? `<ul class="err-list">${items.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>` : "";
+  showResult(`<div class="banner error">${esc(title)}</div>${list}`);
+}
+
+function showResult(html) {
+  $("#result").innerHTML = html;
+  $("#result-section").hidden = false;
+  $("#result-section").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/* ---------- 提交裁决 ---------- */
+
+async function adjudicate() {
+  let payload;
+  try {
+    payload = gatherPayload();
+  } catch (err) {
+    renderError("录入有误，未提交", [err.message]);
+    return;
+  }
+  let resp, body;
+  try {
+    resp = await fetch("/api/mixture-adjudications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    body = await resp.json();
+  } catch (err) {
+    renderError("无法连接裁决服务", [String(err)]);
+    return;
+  }
+  if (resp.ok) {
+    renderResult(body);
+  } else {
+    const items = Array.isArray(body && body.detail)
+      ? body.detail.map((d) => {
+          const where = Array.isArray(d.loc) ? d.loc.filter((x) => x !== "body").join(".") : "";
+          return where ? `${where}：${d.msg}` : d.msg;
+        })
+      : [typeof body === "string" ? body : JSON.stringify(body)];
+    renderError(`输入被判定为非法（HTTP ${resp.status}），未产生裁决结论`, items);
+  }
+}
+
+/* ---------- 示例数据 ---------- */
+
+function loadExample() {
+  candidateCountSel.value = "4";
+  locusCountSel.value = "3";
+  $("#tolerance").value = "0";
+  buildForm();
+  const ids = ["C1", "C2", "C3", "C4"];
+  const names = ["L1", "L2", "L3"];
+  document.querySelectorAll("input.cid").forEach((inp, i) => (inp.value = ids[i]));
+  document.querySelectorAll("input.locus-name").forEach((inp, i) => (inp.value = names[i]));
+  const geno = {
+    C1: { L1: ["a", "b"], L2: ["x", "y"], L3: ["p", "q"] },
+    C2: { L1: ["a", "c"], L2: ["x", "x"], L3: ["p", "p"] },
+    C3: { L1: ["b", "c"], L2: ["y", "z"], L3: ["q", "r"] },
+    C4: { L1: ["c", "c"], L2: ["z", "z"], L3: ["r", "r"] },
+  };
+  ids.forEach((id, ci) => {
+    names.forEach((name, li) => {
+      document.querySelector(`input[data-g="${ci},${li},0"]`).value = geno[id][name][0];
+      document.querySelector(`input[data-g="${ci},${li},1"]`).value = geno[id][name][1];
+    });
+  });
+  const obs = {
+    L1: { a: 1, b: 2, c: 1 },
+    L2: { x: 1, y: 2, z: 1 },
+    L3: { p: 1, q: 2, r: 1 },
+  };
+  names.forEach((name, li) => {
+    const rows = document.querySelector(`.obs-block[data-li="${li}"] .obs-rows`);
+    rows.innerHTML = "";
+    Object.entries(obs[name]).forEach(([allele, count]) => addObsRow(rows, allele, count));
+  });
+  syncObsLabels();
+}
+
+/* ---------- 事件 ---------- */
+
+$("#rebuild").addEventListener("click", buildForm);
+$("#load-example").addEventListener("click", loadExample);
+$("#adjudicate").addEventListener("click", adjudicate);
+candidateCountSel.addEventListener("change", buildForm);
+locusCountSel.addEventListener("change", buildForm);
+
+buildForm();
+</script>
+</body>
+</html>
